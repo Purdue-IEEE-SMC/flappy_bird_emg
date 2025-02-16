@@ -1,5 +1,8 @@
 import pygame, random, time
 from pygame.locals import *
+import serial
+import serial.tools
+import serial.tools.list_ports
 
 #VARIABLES
 SCREEN_WIDHT = 400
@@ -20,6 +23,25 @@ wing = 'assets/audio/wing.wav'
 hit = 'assets/audio/hit.wav'
 
 pygame.mixer.init()
+
+
+ports = serial.tools.list_ports.comports()
+
+port_selected = False
+while(not(port_selected)):
+    print("===Available Serial Ports===")
+    for port, desc, hwid in sorted(ports):
+        print("{}: {} [{}]".format(port, desc, hwid))
+    
+    try:
+        choice = input("Enter Serial Port name to be used: ")
+        serial_port = serial.Serial(choice)
+        port_selected = True
+    except:
+        print("\nERROR: Invalid Serial Port Choice.\n")
+        port_selected = False
+
+serial_port.timeout = 0.1
 
 
 class Bird(pygame.sprite.Sprite):
@@ -185,6 +207,14 @@ while True:
                 bird.bump()
                 pygame.mixer.music.load(wing)
                 pygame.mixer.music.play()
+
+    line = serial_port.readline()
+    print(line)
+    if(line == b'Hand probably open\r\n'):
+        bird.bump()
+        pygame.mixer.music.load(wing)
+        pygame.mixer.music.play()
+
 
     screen.blit(BACKGROUND, (0, 0))
 
