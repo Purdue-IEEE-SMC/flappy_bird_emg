@@ -3,6 +3,7 @@ from pygame.locals import *
 import serial
 import serial.tools
 import serial.tools.list_ports
+import sys
 
 #VARIABLES
 SCREEN_WIDHT = 400
@@ -10,6 +11,7 @@ SCREEN_HEIGHT = 600
 SPEED = 20
 GRAVITY = 2.5
 GAME_SPEED = 15
+LOOP_SPEED = 10
 
 GROUND_WIDHT = 2 * SCREEN_WIDHT
 GROUND_HEIGHT= 100
@@ -18,6 +20,10 @@ PIPE_WIDHT = 80
 PIPE_HEIGHT = 500
 
 PIPE_GAP = 150
+
+THRESHOLD = 50
+flap = True
+emg_debug = False
 
 wing = 'assets/audio/wing.wav'
 hit = 'assets/audio/hit.wav'
@@ -28,18 +34,33 @@ pygame.mixer.init()
 ports = serial.tools.list_ports.comports()
 
 port_selected = False
+auto_select = True
 while(not(port_selected)):
     print("===Available Serial Ports===")
     for port, desc, hwid in sorted(ports):
         print("{}: {} [{}]".format(port, desc, hwid))
-    
-    try:
+    print("Exit: exit")
+    if(len(ports) == 1 & auto_select):
+        #print(str(sorted(ports)[0].device))
+        try:
+            serial_port = serial.Serial(sorted(ports)[0].device)
+            port_selected = True
+            print("Port ", str(sorted(ports)[0].device),"autoselected")
+        except:
+            print("autoselection failed")
+            port_selected = False
+            auto_select = False
+    else:
         choice = input("Enter Serial Port name to be used: ")
-        serial_port = serial.Serial(choice)
-        port_selected = True
-    except:
-        print("\nERROR: Invalid Serial Port Choice.\n")
-        port_selected = False
+        if(choice == "exit"):
+            sys.exit()
+        try:
+            
+            serial_port = serial.Serial(choice)
+            port_selected = True
+        except:
+            print("\nERROR: Invalid Serial Port Choice.\n")
+            port_selected = False
 
 serial_port.timeout = 0.1
 
@@ -165,7 +186,7 @@ begin = True
 
 while begin:
 
-    clock.tick(15)
+    clock.tick(LOOP_SPEED)
 
     for event in pygame.event.get():
         if event.type == QUIT:
@@ -176,6 +197,26 @@ while begin:
                 pygame.mixer.music.load(wing)
                 pygame.mixer.music.play()
                 begin = False
+
+    serial_port.reset_input_buffer()
+    line = serial_port.readline()
+    line = str(line.strip().decode())            
+    if(emg_debug):
+        print(line)
+    try:
+        if(int(line) > THRESHOLD):
+            if(flap == False):
+                bird.bump()
+                pygame.mixer.music.load(wing)
+                pygame.mixer.music.play()
+                if(emg_debug):
+                    print("flap!")
+                flap = True
+                begin = False
+        else:
+            flap = False
+    except:
+        pass
 
     screen.blit(BACKGROUND, (0, 0))
     screen.blit(BEGIN_IMAGE, (120, 150))
@@ -197,7 +238,7 @@ while begin:
 
 while True:
 
-    clock.tick(15)
+    clock.tick(LOOP_SPEED)
 
     for event in pygame.event.get():
         if event.type == QUIT:
@@ -207,13 +248,24 @@ while True:
                 bird.bump()
                 pygame.mixer.music.load(wing)
                 pygame.mixer.music.play()
-
+    serial_port.reset_input_buffer()
     line = serial_port.readline()
-    print(line)
-    if(line == b'Hand probably open\r\n'):
-        bird.bump()
-        pygame.mixer.music.load(wing)
-        pygame.mixer.music.play()
+    line = str(line.strip().decode())
+    if(emg_debug):
+        print(line)
+    try:
+        if(int(line) > THRESHOLD):
+            if(flap == False):
+                bird.bump()
+                pygame.mixer.music.load(wing)
+                pygame.mixer.music.play()
+                if(emg_debug):
+                    print("flap!")
+                flap = True
+        else:
+            flap = False
+    except:
+        pass
 
 
     screen.blit(BACKGROUND, (0, 0))
