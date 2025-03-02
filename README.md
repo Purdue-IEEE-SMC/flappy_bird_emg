@@ -1,16 +1,10 @@
-# Flappy-bird-python
-A basic Flappy Bird game made in Python
+# EMG Flappy Bird
+A fork of a basic Flappy Bird game made in Python, modified with Arduino EMG controls
 
-I took the assets from https://github.com/zhaolingzhi/FlapPyBird-master | Credits to him
-
-## Current State:
-![Screenshot](https://github.com/LeonMarqs/Flappy-bird-python/blob/master/Screenshot_1.png)
+Forked from https://github.com/LeonMarqs/Flappy-bird-python/
 
 ## Dependence:
 * pygame
-
-## Contribution
-It's a simple model, so I'd be very grateful if you could help me to improve the game.
-
+* pyserial
 
 
