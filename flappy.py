@@ -35,11 +35,13 @@ ports = serial.tools.list_ports.comports()
 
 port_selected = False
 auto_select = True
+
 while(not(port_selected)):
     print("===Available Serial Ports===")
     for port, desc, hwid in sorted(ports):
         print("{}: {} [{}]".format(port, desc, hwid))
     print("Exit: exit")
+    print("Keyboard-Only Mode: none")
     if(len(ports) == 1 & auto_select):
         #print(str(sorted(ports)[0].device))
         try:
@@ -54,15 +56,17 @@ while(not(port_selected)):
         choice = input("Enter Serial Port name to be used: ")
         if(choice == "exit"):
             sys.exit()
+        if(choice == "none"):
+            break
         try:
-            
             serial_port = serial.Serial(choice)
             port_selected = True
         except:
             print("\nERROR: Invalid Serial Port Choice.\n")
             port_selected = False
 
-serial_port.timeout = 0.1
+if(port_selected):
+    serial_port.timeout = 0.1
 
 
 class Bird(pygame.sprite.Sprite):
@@ -98,6 +102,10 @@ class Bird(pygame.sprite.Sprite):
     def begin(self):
         self.current_image = (self.current_image + 1) % 3
         self.image = self.images[self.current_image]
+
+    def reset(self):
+        self.rect[0] = SCREEN_WIDHT / 6
+        self.rect[1] = SCREEN_HEIGHT / 2
 
 
 
@@ -184,121 +192,125 @@ clock = pygame.time.Clock()
 
 begin = True
 
-while begin:
+while(True):
+    while begin:
 
-    clock.tick(LOOP_SPEED)
+        clock.tick(LOOP_SPEED)
 
-    for event in pygame.event.get():
-        if event.type == QUIT:
-            pygame.quit()
-        if event.type == KEYDOWN:
-            if event.key == K_SPACE or event.key == K_UP:
-                bird.bump()
-                pygame.mixer.music.load(wing)
-                pygame.mixer.music.play()
-                begin = False
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                pygame.quit()
+            if event.type == KEYDOWN:
+                if event.key == K_SPACE or event.key == K_UP:
+                    bird.bump()
+                    pygame.mixer.music.load(wing)
+                    pygame.mixer.music.play()
+                    begin = False
+        if(port_selected):
+            serial_port.reset_input_buffer()
+            line = serial_port.readline()
+            line = str(line.strip().decode())            
+            if(emg_debug):
+                print(line)
+            try:
+                if(int(line) > THRESHOLD):
+                    if(flap == False):
+                        bird.bump()
+                        pygame.mixer.music.load(wing)
+                        pygame.mixer.music.play()
+                        if(emg_debug):
+                            print("flap!")
+                        flap = True
+                        begin = False
+                else:
+                    flap = False
+            except:
+                pass
 
-    serial_port.reset_input_buffer()
-    line = serial_port.readline()
-    line = str(line.strip().decode())            
-    if(emg_debug):
-        print(line)
-    try:
-        if(int(line) > THRESHOLD):
-            if(flap == False):
-                bird.bump()
-                pygame.mixer.music.load(wing)
-                pygame.mixer.music.play()
-                if(emg_debug):
-                    print("flap!")
-                flap = True
-                begin = False
-        else:
-            flap = False
-    except:
-        pass
+        screen.blit(BACKGROUND, (0, 0))
+        screen.blit(BEGIN_IMAGE, (120, 150))
 
-    screen.blit(BACKGROUND, (0, 0))
-    screen.blit(BEGIN_IMAGE, (120, 150))
+        if is_off_screen(ground_group.sprites()[0]):
+            ground_group.remove(ground_group.sprites()[0])
 
-    if is_off_screen(ground_group.sprites()[0]):
-        ground_group.remove(ground_group.sprites()[0])
+            new_ground = Ground(GROUND_WIDHT - 20)
+            ground_group.add(new_ground)
 
-        new_ground = Ground(GROUND_WIDHT - 20)
-        ground_group.add(new_ground)
+        bird.begin()
+        ground_group.update()
 
-    bird.begin()
-    ground_group.update()
+        bird_group.draw(screen)
+        ground_group.draw(screen)
 
-    bird_group.draw(screen)
-    ground_group.draw(screen)
-
-    pygame.display.update()
-
-
-while True:
-
-    clock.tick(LOOP_SPEED)
-
-    for event in pygame.event.get():
-        if event.type == QUIT:
-            pygame.quit()
-        if event.type == KEYDOWN:
-            if event.key == K_SPACE or event.key == K_UP:
-                bird.bump()
-                pygame.mixer.music.load(wing)
-                pygame.mixer.music.play()
-    serial_port.reset_input_buffer()
-    line = serial_port.readline()
-    line = str(line.strip().decode())
-    if(emg_debug):
-        print(line)
-    try:
-        if(int(line) > THRESHOLD):
-            if(flap == False):
-                bird.bump()
-                pygame.mixer.music.load(wing)
-                pygame.mixer.music.play()
-                if(emg_debug):
-                    print("flap!")
-                flap = True
-        else:
-            flap = False
-    except:
-        pass
+        pygame.display.update()
 
 
-    screen.blit(BACKGROUND, (0, 0))
+    while True:
 
-    if is_off_screen(ground_group.sprites()[0]):
-        ground_group.remove(ground_group.sprites()[0])
+        clock.tick(LOOP_SPEED)
 
-        new_ground = Ground(GROUND_WIDHT - 20)
-        ground_group.add(new_ground)
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                pygame.quit()
+            if event.type == KEYDOWN:
+                if event.key == K_SPACE or event.key == K_UP:
+                    bird.bump()
+                    pygame.mixer.music.load(wing)
+                    pygame.mixer.music.play()
+        if(port_selected):
+            serial_port.reset_input_buffer()
+            line = serial_port.readline()
+            line = str(line.strip().decode())
+            if(emg_debug):
+                print(line)
+            try:
+                if(int(line) > THRESHOLD):
+                    if(flap == False):
+                        bird.bump()
+                        pygame.mixer.music.load(wing)
+                        pygame.mixer.music.play()
+                        if(emg_debug):
+                            print("flap!")
+                        flap = True
+                else:
+                    flap = False
+            except:
+                pass
 
-    if is_off_screen(pipe_group.sprites()[0]):
-        pipe_group.remove(pipe_group.sprites()[0])
-        pipe_group.remove(pipe_group.sprites()[0])
 
-        pipes = get_random_pipes(SCREEN_WIDHT * 2)
+        screen.blit(BACKGROUND, (0, 0))
 
-        pipe_group.add(pipes[0])
-        pipe_group.add(pipes[1])
+        if is_off_screen(ground_group.sprites()[0]):
+            ground_group.remove(ground_group.sprites()[0])
 
-    bird_group.update()
-    ground_group.update()
-    pipe_group.update()
+            new_ground = Ground(GROUND_WIDHT - 20)
+            ground_group.add(new_ground)
 
-    bird_group.draw(screen)
-    pipe_group.draw(screen)
-    ground_group.draw(screen)
+        if is_off_screen(pipe_group.sprites()[0]):
+            pipe_group.remove(pipe_group.sprites()[0])
+            pipe_group.remove(pipe_group.sprites()[0])
 
-    pygame.display.update()
+            pipes = get_random_pipes(SCREEN_WIDHT * 2)
 
-    if (pygame.sprite.groupcollide(bird_group, ground_group, False, False, pygame.sprite.collide_mask) or
-            pygame.sprite.groupcollide(bird_group, pipe_group, False, False, pygame.sprite.collide_mask)):
-        pygame.mixer.music.load(hit)
-        pygame.mixer.music.play()
-        time.sleep(1)
-        break
+            pipe_group.add(pipes[0])
+            pipe_group.add(pipes[1])
+
+        bird_group.update()
+        ground_group.update()
+        pipe_group.update()
+
+        bird_group.draw(screen)
+        pipe_group.draw(screen)
+        ground_group.draw(screen)
+
+        pygame.display.update()
+
+        if (pygame.sprite.groupcollide(bird_group, ground_group, False, False, pygame.sprite.collide_mask) or
+                pygame.sprite.groupcollide(bird_group, pipe_group, False, False, pygame.sprite.collide_mask)):
+            pygame.mixer.music.load(hit)
+            pygame.mixer.music.play()
+            time.sleep(1)
+            break
+    begin = True
+    bird.reset()
 
