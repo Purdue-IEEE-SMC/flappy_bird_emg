@@ -1,5 +1,5 @@
 #define pin A0
-#define BUFFER_SIZE 3
+#define BUFFER_SIZE 20
 
 int val = 0;
 
